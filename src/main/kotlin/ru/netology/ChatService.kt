@@ -7,13 +7,14 @@ object ChatService {
     private var originalMessageID = -1
     private var originalChatID = -1
 
-    private fun addToMessageOriginalID (message: Message) {
+    fun addToMessageOriginalID (message: Message): Message {
         originalMessageID++
         val newMessage = message.copy(id = originalMessageID)
         messages.add(newMessage)
+        return newMessage
     }
 
-    private fun addToChatOriginalID (chat: Chat): Int {
+    fun addToChatOriginalID (chat: Chat): Int {
         originalChatID++
         val newChat = chat.copy(id = originalChatID)
         chats.add(newChat)
@@ -174,5 +175,12 @@ object ChatService {
         }
         println("сообщения с $messageID не существует")
         return false
+    }
+
+    fun removeAll () {
+        chats.clear()
+        messages.clear()
+        originalMessageID = -1
+        originalChatID = -1
     }
 }
