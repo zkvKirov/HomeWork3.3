@@ -14,41 +14,72 @@ class ChatServiceTest {
     }
 
     @After
-    fun clearPosts () {
+    fun clearPosts() {
         ChatService.removeAll()
-    }
-
-    @Test
-    fun addToMessageOriginalID() {
-        val message = Message(userID = 1, text = "Привет!")
-        val expected = Message(id = 0, userID = 1, text = "Привет!")
-        val actual = ChatService.addToMessageOriginalID(message)
-        assertEquals(expected, actual)
-    }
-
-    @Test
-    fun addToChatOriginalID() {
-        val message = Message(userID = 1, text = "Привет!")
-        val chat = Chat(users = listOf(1, 2), title = "Чат с пользователем 2", messages = listOf(message), countMessage = 1)
-        val expectedID = 0
-        val actualID = ChatService.addToChatOriginalID(chat)
-        assertEquals(expectedID, actualID)
     }
 
     @Test
     fun createMessage() {
         ChatService.createMessage(1, 2, "Приветствую!!!")
+        ChatService.createMessage(3, 4, "Как дела?")
+        ChatService.createMessage(2,1, "Hi")
     }
 
     @Test
-    fun editMessage () {
-        val messages = mutableListOf<Message>(
-            Message(id = 0, userID = 1, text = "Привет!"),
-            Message(id = 1, userID = 2, text = "Hi"),
-            Message(id = 2, userID = 1, text = "Как дела?")
-        )
+    fun deleteMessage() {
+        ChatService.createMessage(1,2, "Привет!")
+        ChatService.createMessage(3, 4, "Как дела?")
+        ChatService.createMessage(2,1, "Hi")
+        ChatService.deleteMessage(1, 1)
+    }
+
+    @Test
+    fun deleteChat() {
+        ChatService.createMessage(1,2, "Привет!")
+        ChatService.createMessage(2,1, "Hi")
+        ChatService.createMessage(3, 4, "Как дела?")
+        ChatService.createMessage(4, 3, "Как сажа бела")
+        ChatService.deleteChat(1)
+    }
+
+    @Test
+    fun editMessage() {
+        ChatService.createMessage(1,2, "Привет!")
+        ChatService.createMessage(2,1, "Hi")
+        ChatService.createMessage(1, 2, "Как дела?")
         val message = Message(id = 1, userID = 2, text = "Приветствую!!!")
-        val result = ChatService.editMessage(message)
+        val result = ChatService.editMessage(message, 0)
+        assertTrue(result)
+    }
+
+    @Test
+    fun getAllMessageInChat() {
+        ChatService.createMessage(1,2, "Привет!")
+        ChatService.createMessage(2,1, "Hi")
+        ChatService.createMessage(1, 2, "Как дела?")
+        ChatService.createMessage(2, 1, "Как сажа бела")
+        val expectedList = listOf("Привет!", "Hi", "Как дела?", "Как сажа бела")
+        val actualList = ChatService.getAllMessageInChat(0)
+        assertEquals(expectedList, actualList)
+    }
+
+    @Test
+    fun getUnreadMessageInChat() {
+        ChatService.createMessage(1,2, "Привет!")
+        ChatService.createMessage(2,1, "Hi")
+        ChatService.createMessage(1, 2, "Как дела?")
+        ChatService.createMessage(2, 1, "Как сажа бела")
+
+        val expectedList = listOf("Привет!", "Как дела?")
+        val actualList = ChatService.getAllMessageInChat(0)
+        assertEquals(expectedList, actualList)
+    }
+
+    @Test
+    fun readMessage() {
+        ChatService.createMessage(1,2, "Привет!")
+        ChatService.createMessage(2,1, "Hi")
+        val result = ChatService.readMessage(0, 0)
         assertTrue(result)
     }
 }

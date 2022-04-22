@@ -9,10 +9,11 @@ data class Chat(
     val countOfUnreadMessages: Int = countMessage
 )
 
+
+
 data class Message(
     val id: Int = -1,
     val userID: Int,
-    val chatID: Int = 0,
     val text: String,
     val isRead: Boolean = false
 )

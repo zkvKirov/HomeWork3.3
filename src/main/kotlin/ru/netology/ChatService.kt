@@ -7,167 +7,168 @@ object ChatService {
     private var originalMessageID = -1
     private var originalChatID = -1
 
-    fun addToMessageOriginalID (message: Message): Message {
-        originalMessageID++
-        val newMessage = message.copy(id = originalMessageID)
-        messages.add(newMessage)
-        return newMessage
-    }
-
-    fun addToChatOriginalID (chat: Chat): Int {
-        originalChatID++
-        val newChat = chat.copy(id = originalChatID)
-        chats.add(newChat)
-        return originalChatID
-    }
-
     fun createMessage (senderUserID: Int, recipientUserID: Int, message: String) {
         val newMessage = Message(
+            id = ++originalMessageID,
             userID = senderUserID,
             text = message
         )
-        addToMessageOriginalID(newMessage)
+        messages += newMessage
         val newChat = chats.firstOrNull {
             it.users.containsAll(listOf(senderUserID, recipientUserID))
         } ?.let {
                 it.copy(
                     messages = it.messages + newMessage,
-                    countMessage = it.countMessage + 1
+                    countMessage = it.countMessage + 1,
+                    countOfUnreadMessages = it.countOfUnreadMessages + 1
                 )
             } ?: Chat(
+                id = ++originalChatID,
                 users = listOf(senderUserID, recipientUserID),
                 title = "Чат с пользователем $recipientUserID ",
                 messages = listOf(newMessage),
                 countMessage = 1
             )
-        if (newChat.id == -1) {
-            addToChatOriginalID(newChat)
-            val newMessageID = newMessage.copy(chatID = originalChatID)
-            messages.add(newMessageID)
-        }
 
-        chats.forEachIndexed { index, chat ->
-            if (newChat.id == chat.id) {
-                chats[index] = newChat
-                return@forEachIndexed
+        if (chats.size == originalChatID) {
+            chats +=newChat
+        } else {
+            chats.forEachIndexed { index, chat ->
+                if (newChat.id == chat.id) {
+                    chats[index] = newChat
+                    return@forEachIndexed
+                }
             }
         }
     }
 
     fun deleteMessage (messageID: Int, chatID: Int) {
-        messages.removeIf { messageID == it.id && chatID == it.chatID }
-        chats.removeIf {it.countMessage == 0}
-//        for (chat in chats) {
-//            if (chat.countMessage == 0) {
-//                deleteChat(chat.id)
-//            }
-//        }
-    }
+        val deletedMessage = messages.filter { it.id == messageID }
+        val newListOfMessage = chats
+            .first {
+                it.id == chatID }
+            .messages.minus(deletedMessage.toSet())
 
-    fun editMessage (newMessage: Message): Boolean {
-        messages.forEachIndexed { index, message ->
-            if (newMessage.id == message.id) {
-                messages[index] = message.copy(text = newMessage.text)
-                return true
+        chats.forEachIndexed { index, chat ->
+            if (chatID == chat.id) {
+                chats[index] = chat.copy(
+                    messages = newListOfMessage,
+                    countMessage = chat.countMessage - 1,
+                    countOfUnreadMessages = chat.countOfUnreadMessages - 1
+                )
+                return@forEachIndexed
             }
         }
-        println("сообщения с ${newMessage.id} не существует")
-        return false
+        chats.removeIf {it.countMessage == 0}
+        messages.removeIf { messageID == it.id }
     }
 
     fun deleteChat (chatID: Int) {
+        val deletedMessage = chats
+            .first() {
+            it.id == chatID
+        }
+            .messages
+        messages.removeAll(deletedMessage)
         chats.removeIf {chatID == it.id}
-        messages.removeIf {chatID == it.chatID}
+
+    }
+
+    fun editMessage (newMessage: Message, chatID: Int): Boolean {
+        var listWithEditedMessage = listOf<Message>()
+        messages.forEachIndexed { index, message1 ->
+            if (newMessage.id == message1.id
+                && newMessage.userID == message1.userID
+            ) {
+                messages[index] = message1.copy(text = newMessage.text)
+                chats
+                    .first {
+                        it.id == chatID }
+                    .messages.forEach { message2 ->
+                        if (newMessage.id == message2.id) {
+                            val editedMessage = message2.copy (text = newMessage.text)
+                        }
+                    }
+                // TODO доделать метод
+
+            } else {
+                println("Сообщения с указанными параметрами не существует")
+                return false
+            }
+        }
+        chats.forEachIndexed { index2, chat ->
+            if (chatID == chat.id) {
+                chats[index2] = chat.copy( messages = listWithEditedMessage )
+                return@forEachIndexed
+            }
+        }
+        return true
     }
 
     fun getAllChats (userID: Int) : List<String> {
         val listOfChats = emptyList<String>().toMutableList()
-        chats.firstOrNull {
-            it.users.contains(userID)
-        } ?. let {
-            listOfChats += it.title
-        } ?: return emptyList()
+        chats
+            .filter { it.users.contains(userID) }
+            .forEach { listOfChats += it.title }
         return listOfChats
     }
 
     fun getAllMessageInChat (chatID: Int) : List<String> {
         val listOfMessages = emptyList<String>().toMutableList()
-        chats.forEach { chat ->
-            if (chat.id == chatID) {
-                chat.messages.forEach {message ->
-                    listOfMessages += message.text
-                    val updatedMessage = chat.messages.map { it.copy(isRead = true) }
-                    val updatedChat = chat.copy(
-                        messages = updatedMessage,
-                        countOfUnreadMessages = 0
-                    )
-                    chats.removeIf {updatedChat.id == it.id}
-                    chats.add(updatedChat)
-                }
-//                messages.forEach { message ->
-//                    if (message.chatID == chatID) {
-//                        listOfMessages += message.text
-//                        val updatedMessage = chat.messages.map { it.copy(isRead = true) }
-//                        val updatedChat = chat.copy(messages = updatedMessage)
-//                        chats.removeIf {updatedChat.id == it.id}
-//                        chats.add(updatedChat)
-//                    }
-//                }
-                val countOfMessageInChat = chat.countMessage
-                println("В чате $countOfMessageInChat сообщений")
-            }
-        }
+        val chat = chats.firstOrNull { it.id == chatID } ?: return emptyList()
+        chat.messages.forEach { listOfMessages += it.text }
+        val updatedMessage = chat.messages.map { it.copy(isRead = true) }
+        val updatedChat = chat.copy(
+            messages = updatedMessage,
+            countOfUnreadMessages = 0
+        )
+        chats.removeIf { it.id == updatedChat.id }
+        chats.add(updatedChat)
+        println("В чате ${chat.countMessage} сообщений")
         return listOfMessages
     }
 
-    fun getUnreadMessageInChat (chatID: Int) : List<String> {
-        val listOfUnreadMessages = emptyList<String>().toMutableList()
-        chats.forEach {chat ->
-            if (chat.id == chatID) {
-                chat.messages.filter { it.isRead }
-                messages.forEach {
-                    listOfUnreadMessages += it.text
-                }
-            }
-        }
-        return listOfUnreadMessages
+    fun getUnreadMessageInChat(chatID: Int): List<String> {
+        val chat = chats.firstOrNull { it.id == chatID } ?: return emptyList()
+        return chat.messages
+            .filter { it.isRead }
+            .map { it.text }
     }
 
     fun getUnreadChatsCount (userID: Int) : Int{
-        var chatCount = 0
-        chats.firstOrNull {
-            it.users.contains(userID)
-        } ?.let {
-            it.messages.forEach { message ->
-                if (message.isRead) {
-                    chatCount++
-                    return@forEach
-                } else {
-                    println("Все чаты прочитаны")
-                }
+        var unreadChatsCount = 0
+        chats
+            .filter { it.users.contains(userID) }
+            .forEach {
+                it.messages.first { message -> message.isRead }
+                unreadChatsCount++
             }
-        } ?: println("У юзера $userID нет чатов")
-        return chatCount
+        return unreadChatsCount
     }
 
     fun getUnreadCountMessageInChat (chatID: Int) : Int {
-        var unreadCount = 0
-        chats.forEach {chat ->
-            if (chat.id == chatID) {
-                chat.messages.filter { it.isRead }
-                unreadCount = messages.size
+        chats
+            .filter {
+                it.id == chatID }
+            .forEach {
+                it.messages.filter { message ->
+                    message.isRead }
+                return messages.size
             }
-        }
-        return unreadCount
+        return 0
     }
 
-    fun readMessage (messageID: Int): Boolean {
+    fun readMessage (messageID: Int, chatID: Int): Boolean {
         messages.forEachIndexed { index1, message ->
-            if (messageID == message.id) {
+            if (message.id == messageID) {
                 messages[index1] = message.copy(isRead = true)
+                val updatedListOfMessage = messages
                 chats.forEachIndexed { index2, chat ->
-                    if (message.chatID == chat.id) {
-                        chats[index2] = chat.copy(countOfUnreadMessages = chat.countOfUnreadMessages - 1)
+                    if (chatID == chat.id) {
+                        chats[index2] = chat.copy(
+                            messages = updatedListOfMessage,
+                            countOfUnreadMessages = chat.countOfUnreadMessages - 1
+                        )
                     }
                 }
                 return true
